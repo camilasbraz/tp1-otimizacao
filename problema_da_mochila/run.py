@@ -44,6 +44,7 @@ class Experimento:
             print('\n')
 
             # Inicialize a barra de progresso com 0%
+            print('- executando experimento - ')
             barra_progresso = tqdm(total=4, desc='Executando experimento', bar_format="{desc}: {percentage:3.0f}% {bar}", colour='red')
 
             # Executando o algoritmo genético com diferentes combinações de parâmetros
@@ -71,13 +72,13 @@ class Experimento:
                                                     taxa_mutacao,
                                                     taxa_elitismo)
 
-                                # Armazenando o melhor resultado na lista de resultados
-                                self.resultados.append((melhor_cromossomo,
-                                                        melhor_valor,
-                                                        tamanho_populacao,
-                                                        taxa_cruzamento,
-                                                        taxa_mutacao,
-                                                        taxa_elitismo))
+                            # Armazenando o melhor resultado na lista de resultados
+                            self.resultados.append((melhor_cromossomo,
+                                                    melhor_valor,
+                                                    tamanho_populacao,
+                                                    taxa_cruzamento,
+                                                    taxa_mutacao,
+                                                    taxa_elitismo))
                 barra_progresso.update(1)  # Atualize a barra de progresso em 1 unidade
 
             barra_progresso.colour = 'green'
