@@ -49,10 +49,14 @@ def algoritmo_genetico(cidades, num_geracoes, tamanho_populacao, taxa_cruzamento
     num_cidades = len(cidades)
     populacao = inicializar_populacao(tamanho_populacao, num_cidades)
     melhores_fitness = []
+    fitness_medio_por_geracao = []
+    piores_fitness = []
     
     for geracao in range(num_geracoes):
         fitness_populacao = [calcular_fitness(individuo, cidades) for individuo in populacao]
         melhores_fitness.append(min(fitness_populacao))
+        piores_fitness.append(max(fitness_populacao))  # Calcule e armazene o pior fitness
+
         
         nova_populacao = selecao_elitista(populacao, fitness_populacao, int(tamanho_populacao * taxa_elitismo))
         
@@ -63,11 +67,15 @@ def algoritmo_genetico(cidades, num_geracoes, tamanho_populacao, taxa_cruzamento
             nova_populacao.append(filho)
         
         populacao = nova_populacao
+
+        # Calcula o fitness médio da população atual e o armazena em fitness_medio_por_geracao
+        fitness_medio_por_geracao_execucao = np.mean(fitness_populacao)
+        fitness_medio_por_geracao.append(fitness_medio_por_geracao_execucao)
     
     melhor_rota = populacao[fitness_populacao.index(min(fitness_populacao))]
     melhor_distancia = min(fitness_populacao)
     
-    return melhor_rota, melhor_distancia, melhores_fitness
+    return melhor_rota, melhor_distancia, melhores_fitness, fitness_medio_por_geracao, piores_fitness
 
 # Leitura das coordenadas das cidades a partir do arquivo cidades.txt
 def ler_cidades(filename):
@@ -81,6 +89,7 @@ def ler_cidades(filename):
 if __name__ == "__main__":
     # Parâmetros do AG
     num_geracoes = 100
+    num_execucoes = 10  # Número de execuções do algoritmo
     tamanho_populacao = 100
     taxa_cruzamento = 0.7
     taxa_mutacao = 0.01
@@ -89,17 +98,76 @@ if __name__ == "__main__":
     # Leitura das coordenadas das cidades a partir do arquivo cidades.txt
     cidades = ler_cidades('cidades.txt')
 
-    # Execução do Algoritmo Genético
-    melhor_rota, melhor_distancia, melhores_fitness = algoritmo_genetico(
-        cidades, num_geracoes, tamanho_populacao, taxa_cruzamento, taxa_mutacao, taxa_elitismo
-    )
+    melhores_solucoes = []  # Para armazenar as melhores soluções de cada execução
+    fitness_medio_por_execucao = []
+    fitness_melhor_por_execucao = []
+    fitness_pior_por_execucao = []
 
-    print(f'Melhor Rota Encontrada: {melhor_rota}')
-    print(f'Distância Total: {melhor_distancia}')
+    # Define uma lista de símbolos diferentes para cada série de dados
+    simbolos = ['o', 's', '^', 'D', 'v', 'p', '*', '+', 'x', 'H']
+    geracoes = range(num_geracoes)
 
-    # Plotagem da evolução do fitness
-    plt.plot(melhores_fitness)
+    for execucao in range(num_execucoes):
+       # Execução do Algoritmo Genético
+        melhor_rota, melhor_distancia, melhores_fitness, fitness_medio, fitness_pior = algoritmo_genetico(
+            cidades, num_geracoes, tamanho_populacao, taxa_cruzamento, taxa_mutacao, taxa_elitismo
+        )
+        melhores_solucoes.append((melhor_rota, melhor_distancia))
+        
+        # Registra o fitness médio, melhor e pior por geração para esta execução
+        fitness_medio_por_execucao.append(fitness_medio)
+        fitness_melhor_por_execucao.append([min(melhores_fitness[:i+1]) for i in range(num_geracoes)])
+        fitness_pior_por_execucao.append(fitness_pior)
+
+        # Plota um gráfico separado para esta execução
+        plt.figure(figsize=(12, 6))
+        
+        plt.plot(geracoes, fitness_melhor_por_execucao[execucao], label=f'Melhor Fitness', marker=simbolos[1])
+        plt.plot(geracoes, fitness_pior_por_execucao[execucao], label=f'Pior Fitness', marker=simbolos[2])
+        plt.plot(geracoes, fitness_medio, label=f'Fitness Médio', marker=simbolos[0])
+        plt.xlabel('Gerações')
+        plt.ylabel('Fitness (Distância Total)')
+        plt.title(f'Curvas de Fitness Execução {execucao+1}')
+        plt.legend()
+
+        # Salva o gráfico em um arquivo PNG com o número da execução
+        nome_arquivo_png = f'execucao_{execucao+1}.png'
+        plt.savefig(nome_arquivo_png)
+
+        # Fecha a figura para liberar memória
+        plt.close()
+
+    # Cálculo do valor médio e desvio padrão das distâncias totais das melhores soluções
+    distancias_melhores_solucoes = [solucao[1] for solucao in melhores_solucoes]
+    media_distancias = np.mean(distancias_melhores_solucoes)
+    desvio_padrao_distancias = np.std(distancias_melhores_solucoes)
+
+    # Calcula o valor médio e desvio padrão dos fitness das soluções finais
+    media_fitness = np.mean(distancias_melhores_solucoes)
+    desvio_padrao_fitness = np.std(distancias_melhores_solucoes)
+    # Grava os resultados das melhores soluções e os valores médio e desvio padrão dos fitness em um arquivo CSV
+    with open('melhores_solucoes.csv', 'w') as arquivo_csv:
+        arquivo_csv.write('Execucao,MelhorDistancia,Media das Melhores Distancias,Desvio Padrao das Melhores Distancias,Media dos Fitness das Soluçoes Finais,Desvio Padrao dos Fitness das Soluçoes Finais\n')
+        for execucao, distancia in enumerate(distancias_melhores_solucoes, 1):
+            arquivo_csv.write(f'{execucao},{distancia},{media_distancias},{desvio_padrao_distancias},{media_fitness},{desvio_padrao_fitness}\n')
+
+    # Imprime os resultados
+    print(f'Média das Melhores Distâncias: {media_distancias}')
+    print(f'Desvio Padrão das Melhores Distâncias: {desvio_padrao_distancias}')
+    print(f'Média dos Fitness das Soluções Finais: {media_fitness}')
+    print(f'Desvio Padrão dos Fitness das Soluções Finais: {desvio_padrao_fitness}')
+
+
+    # Plotagem das curvas de fitness médio, melhor e pior por geração para cada execução
+    geracoes = range(num_geracoes)
+   
+    plt.figure(figsize=(12, 6))
+    for execucao in range(num_execucoes):
+        plt.plot(geracoes, fitness_medio_por_execucao[execucao], label=f'Fitness Médio - Execução {execucao+1}')
+        plt.plot(geracoes, fitness_melhor_por_execucao[execucao], label=f'Melhor Fitness - Execução {execucao+1}')
+        plt.plot(geracoes, fitness_pior_por_execucao[execucao], label=f'Pior Fitness - Execução {execucao+1}')
     plt.xlabel('Gerações')
     plt.ylabel('Fitness (Distância Total)')
-    plt.title('Evolução do Fitness no Algoritmo Genético')
+    plt.title('Curvas de Fitness Médio, Melhor e Pior por Geração')
+    plt.legend()
     plt.show()
