@@ -2,13 +2,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def function_peaks(input, nplot):
+    x = np.linspace(-3, 3, 100)  # Create a grid of x values
+    y = np.linspace(-3, 3, 100)  # Create a grid of y values
+    X, Y = np.meshgrid(x, y)  # Create a grid of (x, y) points
+
     # PEAKS function.
-    x = input[0]
-    y = input[1]
-    
-    z = 3 * (1 - x) ** 2 * np.exp(-x ** 2 - (y + 1) ** 2) \
-        - 10 * (x / 5 - x ** 3 - y ** 5) * np.exp(-x ** 2 - y ** 2) \
-        - 1 / 3 * np.exp(-(x + 1) ** 2 - y ** 2)
+    Z = 3 * (1 - X) ** 2 * np.exp(-X ** 2 - (Y + 1) ** 2) \
+        - 10 * (X / 5 - X ** 3 - Y ** 5) * np.exp(-X ** 2 - Y ** 2) \
+        - 1 / 3 * np.exp(-(X + 1) ** 2 - Y ** 2)
 
     # Turn off warning.
     np.seterr(all='ignore')
@@ -18,7 +19,7 @@ def function_peaks(input, nplot):
         
         # 3D Surface Plot
         ax1 = fig.add_subplot(121, projection='3d')
-        ax1.plot_surface(x, y, z, cmap='viridis')
+        ax1.plot_surface(X, Y, Z, cmap='viridis')
         ax1.set_xlabel('X')
         ax1.set_ylabel('Y')
         ax1.set_zlabel('Z')
@@ -26,7 +27,7 @@ def function_peaks(input, nplot):
         
         # Contour Plot
         ax2 = fig.add_subplot(122)
-        contour = ax2.contourf(x, y, z, 20, cmap='viridis')
+        contour = ax2.contourf(X, Y, Z, 20, cmap='viridis')
         plt.colorbar(contour)
         plt.plot(input[0], input[1], marker='o', markersize=10, color='k', markerfacecolor='none', linewidth=2)
         ax2.set_xlabel('X')
@@ -36,4 +37,4 @@ def function_peaks(input, nplot):
         plt.tight_layout()
         plt.show()
 
-    return z
+    return Z

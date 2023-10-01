@@ -13,13 +13,13 @@ def lanca_GA_functions():
     plt.close('all')
 
     # Number of generations
-    generation_n = 30
+    generation_n = 40
     # Population size
-    popuSize = 300
+    popuSize = 80
     # Crossover rate
     xover_rate = 0.70
     # Mutation rate
-    mutate_rate = 0.02
+    mutate_rate = 0.03
     # Bit number for each input variable
     bit_n = 8
 
@@ -28,7 +28,7 @@ def lanca_GA_functions():
     OPT_METHOD = 'ga'
 
     # Objective function
-    obj_fcn = function_rastrigin  # Change this to the desired objective function
+    obj_fcn = function_peaks  # Change this to the desired objective function
 
     if obj_fcn == function_peaks:
         var_n = 2
@@ -49,7 +49,7 @@ def lanca_GA_functions():
     lower = np.zeros(generation_n)
 
     # If nplot = 2: Plot the population popu[xp;yp]
-    nplot = 1  # Adjust this based on your needs or remove it if not needed
+    nplot = 2  # Adjust this based on your needs or remove it if not needed
 
     # Main loop of GA
     for i in np.arange(generation_n):
