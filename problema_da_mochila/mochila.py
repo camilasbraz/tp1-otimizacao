@@ -1,73 +1,92 @@
-import random
+import numpy as np
+import random as rd
+from random import randint
+import matplotlib.pyplot as plt
 
-class Item:
-    def __init__(self, peso, valor):
-        self.peso = peso
-        self.valor = valor
+class Knapsack:
+    def __init__(self, num_items, max_weight):
+        self.item_numbers = np.arange(1, num_items + 1)
+        self.weights = np.random.randint(1, 15, size=num_items)
+        self.values = np.random.randint(10, 750, size=num_items)
+        self.threshold = max_weight
 
-class MochilaGenetica:
-    def __init__(self, tamanho_mochila, itens):
-        self.tamanho_mochila = tamanho_mochila
-        self.itens = itens
-        self.tamanho_populacao = 100
-        self.taxa_cruzamento = 0.8
-        self.taxa_mutacao = 0.1
-        self.taxa_elitismo = 0.1
-        self.num_geracoes = 100
+    def display_items(self):
+        print('Item No.   Weight   Value')
+        for i in range(len(self.item_numbers)):
+            print('{}          {}         {}'.format(self.item_numbers[i], self.weights[i], self.values[i]))
 
-    def criar_cromossomo(self):
-        return [random.randint(0, 1) for _ in range(len(self.itens))]
+class GeneticAlgorithm:
+    def __init__(self, knapsack, solutions_per_pop, num_generations):
+        self.solutions_per_pop = solutions_per_pop
+        self.pop_size = (solutions_per_pop, len(knapsack.item_numbers))
+        self.num_generations = num_generations
+        self.knapsack = knapsack
 
-    def calcular_fitness(self, cromossomo):
-        peso_total = sum(cromossomo[i] * self.itens[i].peso for i in range(len(cromossomo)))
-        valor_total = sum(cromossomo[i] * self.itens[i].valor for i in range(len(cromossomo)))
-        if peso_total > self.tamanho_mochila:
-            return 0
-        else:
-            return valor_total
+    def create_initial_population(self):
+        return np.random.randint(2, size=self.pop_size).astype(int)
 
-    def selecao(self, populacao):
-        pesos_fitness = [self.calcular_fitness(cromossomo) for cromossomo in populacao]
+    def cal_fitness(self, population):
+        fitness = np.empty(population.shape[0])
+        for i in range(population.shape[0]):
+            S1 = np.sum(population[i] * self.knapsack.values)
+            S2 = np.sum(population[i] * self.knapsack.weights)
+            if S2 <= self.knapsack.threshold:
+                fitness[i] = S1
+            else:
+                fitness[i] = 0
+        return fitness.astype(int)
 
-        # Verificando se todos os pesos são zero
-        if sum(pesos_fitness) == 0:
-            return random.choices(populacao, k=self.tamanho_populacao)
-        else:
-            return random.choices(populacao, weights=pesos_fitness, k=self.tamanho_populacao)
+    def selection(self, fitness, num_parents, population):
+        fitness = list(fitness)
+        parents = np.empty((num_parents, population.shape[1]))
+        for i in range(num_parents):
+            max_fitness_idx = np.where(fitness == np.max(fitness))
+            parents[i, :] = population[max_fitness_idx[0][0], :]
+            fitness[max_fitness_idx[0][0]] = -999999
+        return parents
 
-    def cruzamento(self, pai1, pai2):
-        ponto_corte = random.randint(1, len(pai1) - 1)
-        filho1 = pai1[:ponto_corte] + pai2[ponto_corte:]
-        filho2 = pai2[:ponto_corte] + pai1[ponto_corte:]
-        return filho1, filho2
+    def crossover(self, parents, num_offsprings):
+        offsprings = np.empty((num_offsprings, parents.shape[1]))
+        crossover_point = int(parents.shape[1] / 2)
+        crossover_rate = 0.8
+        i = 0
+        while parents.shape[0] < num_offsprings:
+            parent1_index = i % parents.shape[0]
+            parent2_index = (i + 1) % parents.shape[0]
+            x = rd.random()
+            if x > crossover_rate:
+                continue
+            offsprings[i, 0:crossover_point] = parents[parent1_index, 0:crossover_point]
+            offsprings[i, crossover_point:] = parents[parent2_index, crossover_point:]
+            i += 1
+        return offsprings
 
-    def mutacao(self, cromossomo):
-        indice = random.randint(0, len(cromossomo) - 1)
-        cromossomo[indice] = 1 - cromossomo[indice]
-        return cromossomo
+    def mutation(self, offsprings):
+        mutants = np.empty((offsprings.shape))
+        mutation_rate = 0.4
+        for i in range(mutants.shape[0]):
+            random_value = rd.random()
+            mutants[i, :] = offsprings[i, :]
+            if random_value > mutation_rate:
+                continue
+            int_random_value = randint(0, offsprings.shape[1] - 1)
+            if mutants[i, int_random_value] == 0:
+                mutants[i, int_random_value] = 1
+            else:
+                mutants[i, int_random_value] = 0
+        return mutants
 
-    def algoritmo_genetico(self):
-        populacao = [self.criar_cromossomo() for _ in range(self.tamanho_populacao)]
+    def optimize(self):
+        population = self.create_initial_population()
+        for _ in range(self.num_generations):
+            fitness = self.cal_fitness(population)
+            parents = self.selection(fitness, int(self.solutions_per_pop / 2), population)
+            offsprings = self.crossover(parents, self.solutions_per_pop - parents.shape[0])
+            mutants = self.mutation(offsprings)
+            population[0:parents.shape[0], :] = parents
+            population[parents.shape[0]:, :] = mutants
 
-        for _ in range(self.num_geracoes):
-            populacao = self.selecao(populacao)
-
-            for i in range(0, self.tamanho_populacao, 2):
-                pai1, pai2 = random.choices(populacao, k=2)
-                if random.random() < self.taxa_cruzamento:
-                    filho1, filho2 = self.cruzamento(pai1, pai2)
-                    populacao += [filho1, filho2]
-
-            for i in range(len(populacao)):
-                if random.random() < self.taxa_mutacao:
-                    populacao[i] = self.mutacao(populacao[i])
-
-            num_elites = int(self.taxa_elitismo * self.tamanho_populacao)
-            melhores_indices = sorted(range(self.tamanho_populacao), key=lambda i: self.calcular_fitness(populacao[i]), reverse=True)[:num_elites]
-            elite = [populacao[i] for i in melhores_indices]
-            populacao = elite + random.choices(populacao, k=self.tamanho_populacao - num_elites)
-
-        melhor_cromossomo = max(populacao, key=self.calcular_fitness)
-        melhor_valor = self.calcular_fitness(melhor_cromossomo)
-        return melhor_cromossomo, melhor_valor
-
+        fitness_last_gen = self.cal_fitness(population)
+        max_fitness = np.where(fitness_last_gen == np.max(fitness_last_gen))
+        parameters = population[max_fitness[0][0], :]
+        return parameters

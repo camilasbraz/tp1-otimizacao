@@ -1,104 +1,131 @@
-from mochila import MochilaGenetica, Item
-import random
-from utils import loading_bar
-from tqdm import tqdm
-import pandas as pd
-import os
+import numpy as np
+import random as rd
+from random import randint
+import matplotlib.pyplot as plt
 
-class Experimento:
-    def __init__(self, num_experimentos=10, save_results_path='./resultados'):
-        self.num_experimentos = num_experimentos
-        self.save_results_path = save_results_path
-        self.resultados = []
+class Backpack:
+    def __init__(self, item_number, weight, value, threshold):
+        self.item_number = item_number
+        self.weight = weight
+        self.value = value
+        self.threshold = threshold
 
-    def criar_itens(self):
-        loading_bar('Criando itens', 'red', '- criando itens da mochila -')
-        return [Item(peso=random.randint(1, 10),
-                     valor=random.randint(1, 100))
-                for _ in range(20)]
+    def display_items(self):
+        print('Item No.   Weight   Value')
+        for i in range(len(self.item_number)):
+            print('{0}          {1}         {2}\n'.format(self.item_number[i], self.weight[i], self.value[i]))
 
-    def criar_mochila(self, itens):
-        loading_bar('Criando mochila', 'red', '- criando mochila -')
-        return MochilaGenetica(10, itens)
+class GeneticAlgorithm:
+    def __init__(self, backpack, pop_size, num_generations):
+        self.backpack = backpack
+        self.pop_size = pop_size
+        self.num_generations = num_generations
+        self.initial_population = np.random.randint(2, size=pop_size)
+        self.initial_population = self.initial_population.astype(int)
+        self.fitness_history = []
 
-    def salvar_resultados(self):
-        # Cria um DataFrame do Pandas com os resultados
-        df = pd.DataFrame(self.resultados, columns=['Melhor Cromossomo', 'Melhor Valor', 'Tamanho da População', 'Taxa de Cruzamento', 'Taxa de Mutação', 'Taxa de Elitismo'])
+    def cal_fitness(self, population):
+        fitness = np.empty(population.shape[0])
+        for i in range(population.shape[0]):
+            S1 = np.sum(population[i] * self.backpack.value)
+            S2 = np.sum(population[i] * self.backpack.weight)
+            if S2 <= self.backpack.threshold:
+                fitness[i] = S1
+            else:
+                fitness[i] = 0
+        return fitness.astype(int)
 
-        # Salva o DataFrame em um arquivo CSV
-        save_path = os.path.join(self.save_results_path, 'resultados_problema_mochila.csv')
-        df.to_csv(save_path, index=False)
-        print(df)
-        print(f"Resultados salvos em {self.save_results_path}.")
+    def selection(self, fitness, num_parents):
+        fitness = list(fitness)
+        parents = np.empty((num_parents, self.pop_size[1]))
+        for i in range(num_parents):
+            max_fitness_idx = np.where(fitness == np.max(fitness))
+            parents[i, :] = self.initial_population[max_fitness_idx[0][0], :]
+            fitness[max_fitness_idx[0][0]] = -999999
+        return parents
 
-    def executar_experimentos(self):
-        print('\n----------------------------------------------')
-        print(' PROBLEMA DA MOCHILA COM ALGORITMOS GENÉTICOS ')
-        print('----------------------------------------------\n\n')
-        melhor_resultado = None
+    def crossover(self, parents, num_offsprings):
+        # Same as your crossover method
+        offsprings = np.empty((num_offsprings, parents.shape[1]))
+        crossover_point = int(parents.shape[1]/2)
+        crossover_rate = 0.8
+        i=0
+        while (parents.shape[0] < num_offsprings):
+            parent1_index = i%parents.shape[0]
+            parent2_index = (i+1)%parents.shape[0]
+            x = rd.random()
+            if x > crossover_rate:
+                continue
+            parent1_index = i%parents.shape[0]
+            parent2_index = (i+1)%parents.shape[0]
+            offsprings[i,0:crossover_point] = parents[parent1_index,0:crossover_point]
+            offsprings[i,crossover_point:] = parents[parent2_index,crossover_point:]
+            i=+1
+        return offsprings
 
-        for i in range(self.num_experimentos):
-            print(f' ---- EXPERIMENTO NUMERO {i} ----')
-            itens = self.criar_itens()
-            mochila = self.criar_mochila(itens)
-            print('\n')
+    def mutation(self, offsprings):
+        mutants = np.empty((offsprings.shape))
+        mutation_rate = 0.4
+        for i in range(mutants.shape[0]):
+            random_value = rd.random()
+            mutants[i,:] = offsprings[i,:]
+            if random_value > mutation_rate:
+                continue
+            int_random_value = randint(0,offsprings.shape[1]-1)    
+            if mutants[i,int_random_value] == 0 :
+                mutants[i,int_random_value] = 1
+            else :
+                mutants[i,int_random_value] = 0
+        return mutants   
 
-            # Inicialize a barra de progresso com 0%
-            print('- executando experimento - ')
-            barra_progresso = tqdm(total=4, desc='Executando experimento', bar_format="{desc}: {percentage:3.0f}% {bar}", colour='red')
+    def optimize(self):
+        num_parents = int(self.pop_size[0] / 2)
+        num_offsprings = self.pop_size[0] - num_parents
+        for _ in range(self.num_generations):
+            fitness = self.cal_fitness(self.initial_population)
+            self.fitness_history.append(fitness)
+            parents = self.selection(fitness, num_parents)
+            offsprings = self.crossover(parents, num_offsprings)
+            mutants = self.mutation(offsprings)
+            self.initial_population[0:parents.shape[0], :] = parents
+            self.initial_population[parents.shape[0]:, :] = mutants
 
-            # Executando o algoritmo genético com diferentes combinações de parâmetros
-            for tamanho_populacao in [50, 100, 200]:
-                for taxa_cruzamento in [0.6, 0.8, 1.0]:
-                    for taxa_mutacao in [0.05, 0.1, 0.2]:
-                        for taxa_elitismo in [0.1, 0.2, 0.3]:
+    def run_experiment(self):
+        self.optimize()
+        fitness_last_gen = self.cal_fitness(self.initial_population)
+        max_fitness = np.where(fitness_last_gen == np.max(fitness_last_gen))
+        parameters = [self.initial_population[max_fitness[0][0], :]]
+        selected_items = self.backpack.item_number * parameters
+        print('The optimized parameters for the given inputs are: \n{}'.format(parameters))
+        print('\nSelected items that will maximize the knapsack without breaking it:')
+        for i in range(selected_items.shape[1]):
+            if selected_items[0][i] != 0:
+                print('{}\n'.format(selected_items[0][i]))
 
-                            mochila.tamanho_populacao = tamanho_populacao
-                            mochila.taxa_cruzamento = taxa_cruzamento
-                            mochila.taxa_mutacao = taxa_mutacao
-                            mochila.taxa_elitismo = taxa_elitismo
+    def plot_fitness_history(self):
+        fitness_history_mean = [np.mean(fitness) for fitness in self.fitness_history]
+        fitness_history_max = [np.max(fitness) for fitness in self.fitness_history]
+        plt.plot(list(range(self.num_generations)), fitness_history_mean, label='Mean Fitness')
+        plt.plot(list(range(self.num_generations)), fitness_history_max, label='Max Fitness')
+        plt.legend()
+        plt.title('Fitness through the generations')
+        plt.xlabel('Generations')
+        plt.ylabel('Fitness')
+        plt.savefig('./resultados/plot.png')
 
-                            mochila.num_geracoes = 100  # Número fixo de gerações para simplificar o exemplo
+# Example usage
+item_number = np.arange(1, 11)
+weight = np.random.randint(1, 15, size=10)
+value = np.random.randint(10, 750, size=10)
+knapsack_threshold = 35
 
-                            # Executando o algoritmo genético
-                            melhor_cromossomo, melhor_valor = mochila.algoritmo_genetico()
+backpack = Backpack(item_number, weight, value, knapsack_threshold)
+backpack.display_items()
 
-                            # Armazenando o melhor resultado
-                            if melhor_resultado is None or melhor_valor > melhor_resultado[1]:
-                                melhor_resultado = (melhor_cromossomo,
-                                                    melhor_valor,
-                                                    tamanho_populacao,
-                                                    taxa_cruzamento,
-                                                    taxa_mutacao,
-                                                    taxa_elitismo)
+solutions_per_pop = 8
+pop_size = (solutions_per_pop, item_number.shape[0])
+num_generations = 50
 
-                            # Armazenando o melhor resultado na lista de resultados
-                            self.resultados.append((melhor_cromossomo,
-                                                    melhor_valor,
-                                                    tamanho_populacao,
-                                                    taxa_cruzamento,
-                                                    taxa_mutacao,
-                                                    taxa_elitismo))
-                barra_progresso.update(1)  # Atualize a barra de progresso em 1 unidade
-
-            barra_progresso.colour = 'green'
-            barra_progresso.set_description("COMPLETO")
-            barra_progresso.set_postfix({"Status": "Completo"})
-            barra_progresso.refresh()
-            barra_progresso.close()
-
-            print("\033[32mExperimento completo!\033[0m")
-            print('\n-----------------------------\n')
-
-
-    def run(self):
-        # Executando os experimentos
-        self.executar_experimentos()
-
-        # Salvando os resultados                        
-        self.salvar_resultados()
-
-if __name__ == '__main__':
-
-   Experimento(1).run()
-    
+genetic_algorithm = GeneticAlgorithm(backpack, pop_size, num_generations)
+genetic_algorithm.run_experiment()
+genetic_algorithm.plot_fitness_history()
